@@ -1,0 +1,65 @@
+pipeline {
+    agent any
+    
+    parameters {
+        choice(
+            name: 'RELEASE_TYPE', 
+            choices: ['devSnapshot', 'Specific Version'], 
+            description: 'Select the release tier.'
+        )
+        string(
+            name: 'VERSION_STRING', 
+            defaultValue: '1.0.0', 
+            description: 'If "Specific Version" is chosen, provide the version (e.g., v1.2.0).'
+        )
+    }
+    
+    environment {
+        FINAL_VERSION = ""
+    }
+    
+    stages {
+        stage('1. Determine Version') {
+            steps {
+                script {
+                    if (params.RELEASE_TYPE == 'devSnapshot') {
+                        env.FINAL_VERSION = "devSnapshot-build${BUILD_NUMBER}"
+                    } else {
+                        env.FINAL_VERSION = params.VERSION_STRING.startsWith('v') ? params.VERSION_STRING : "v${params.VERSION_STRING}"
+                    }
+                    echo "Target Release Version Established: ${env.FINAL_VERSION}"
+                }
+            }
+        }
+        
+        stage('2. Build App & Inject Version') {
+            steps {
+                script {
+                    echo "Injecting version ${env.FINAL_VERSION} into package.json..."
+                    // Injects version directly into package.json
+                    sh "jq '.version = \"${env.FINAL_VERSION}\"' package.json > temp.json && mv temp.json package.json"
+                    
+                    echo "Compiling application..."
+                    sh "npm install"
+                    sh "npm run build" 
+                }
+            }
+        }
+        
+        stage('3. Archive Immutable Zip') {
+            steps {
+                script {
+                    def zipName = "app-${env.FINAL_VERSION}.zip"
+                    echo "Packaging build into ${zipName}..."
+                    
+                    // Note: If your project builds to 'dist', keep 'dist/'. 
+                    // If it builds to 'build', change this to 'build/'
+                    sh "zip -r ${zipName} dist/"
+                    
+                    echo "Saving to Jenkins Master Storage..."
+                    archiveArtifacts artifacts: zipName, fingerprint: true
+                }
+            }
+        }
+    }
+}
