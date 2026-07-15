@@ -6,6 +6,12 @@ pipeline {
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
                 bat 'npm install'
@@ -38,6 +44,10 @@ pipeline {
 
         failure {
             echo 'CI Pipeline failed.'
+        }
+
+        always {
+            cleanWs()
         }
     }
 }
