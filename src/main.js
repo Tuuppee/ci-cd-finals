@@ -4,6 +4,9 @@ import viteLogo from "./assets/vite.svg";
 import heroImg from "./assets/hero.png";
 import { setupCounter } from "./counter.js";
 
+const environment =
+  window.APP_CONFIG?.environment || "LOCAL";
+
 document.querySelector("#app").innerHTML = `
 <section id="center">
   <div class="hero">
@@ -13,8 +16,12 @@ document.querySelector("#app").innerHTML = `
   </div>
   <div>
     <h1>Get started</h1>
+
+    <p><strong>Current Environment:</strong> ${environment}</p>
+
     <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
   </div>
+
   <button id="counter" type="button" class="counter"></button>
 </section>
 
@@ -40,6 +47,7 @@ document.querySelector("#app").innerHTML = `
       </li>
     </ul>
   </div>
+
   <div id="social">
     <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
     <h2>Connect with us</h2>
