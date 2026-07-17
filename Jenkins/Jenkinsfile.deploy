@@ -15,7 +15,6 @@ pipeline {
     }
 
     environment {
-        // Defines where we will "deploy" (extract) our app on the server
         DEPLOY_DIR = "C:\\deployments\\${params.TARGET_ENV}"
     }
 
@@ -35,7 +34,7 @@ pipeline {
                     copyArtifacts(
                         projectName: 'CD-Delivery',
                         filter: params.PACKAGE_ZIP_NAME,
-                        selector: lastSuccessful()
+                        selector: specific(7)
                     )
                 }
             }
