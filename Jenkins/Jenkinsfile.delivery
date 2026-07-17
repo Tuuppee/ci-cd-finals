@@ -14,11 +14,8 @@ pipeline {
         )
     }
     
-    environment {
-        FINAL_VERSION = ""
-    }
-    
     stages {
+
         stage('1. Determine Version') {
             steps {
                 script {
@@ -44,15 +41,16 @@ pipeline {
         stage('2. Build App & Inject Version') {
             steps {
                 script {
+
                     echo "Injecting version ${env.FINAL_VERSION} into package.json..."
-                    // Uses Node.js to update package.json, which works seamlessly on Windows without requiring jq
+
                     bat """
                     node -e "const fs = require('fs'); const pkg = require('./package.json'); pkg.version = '${env.FINAL_VERSION}'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
                     """
-                    
+
                     echo "Compiling application..."
                     bat "npm install"
-                    bat "npm run build" 
+                    bat "npm run build"
                 }
             }
         }
@@ -60,12 +58,13 @@ pipeline {
         stage('3. Archive Immutable Zip') {
             steps {
                 script {
+
                     def zipName = "app-${env.FINAL_VERSION}.zip"
+
                     echo "Packaging build into ${zipName}..."
-                    
-                    // Windows uses PowerShell's Compress-Archive utility to build zip files natively without needing 'zip' installed
+
                     powershell "Compress-Archive -Path dist/* -DestinationPath ${zipName} -Force"
-                    
+
                     echo "Saving to Jenkins Master Storage..."
                     archiveArtifacts artifacts: zipName, fingerprint: true
                 }
