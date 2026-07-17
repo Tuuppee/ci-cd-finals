@@ -1,0 +1,64 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(
+            name: 'TARGET_ENV',
+            choices: ['Development', 'Staging', 'Production'],
+            description: 'Select the target environment for deployment.'
+        )
+        string(
+            name: 'PACKAGE_ZIP_NAME',
+            defaultValue: 'app-v1.0.0.zip',
+            description: 'Enter the exact name of the zip package to deploy (e.g., app-v1.2.0.zip).'
+        )
+    }
+
+    environment {
+        // Defines where we will "deploy" (extract) our app on the server
+        DEPLOY_DIR = "C:\\deployments\\${params.TARGET_ENV}"
+    }
+
+    stages {
+        stage('1. Locate Package') {
+            steps {
+                script {
+                    echo "Deploying Package: ${params.PACKAGE_ZIP_NAME} to ${params.TARGET_ENV}..."
+                    
+                    // We need to copy the zip from the CD-Delivery job workspace into this workspace
+                    // This keeps the build immutable (Build Once, Deploy Anywhere)
+                    copyArtifacts(
+                        projectName: 'CD-Delivery',
+                        filter: params.PACKAGE_ZIP_NAME,
+                        selector: lastSuccessful()
+                    )
+                }
+            }
+        }
+
+        stage('2. Prepare Environment') {
+            steps {
+                script {
+                    echo "Preparing deployment target folder at ${env.DEPLOY_DIR}..."
+                    // Create the deployment directory if it doesn't exist, and clean it if it does
+                    bat """
+                    if not exist "${env.DEPLOY_DIR}" mkdir "${env.DEPLOY_DIR}"
+                    del /q /s "${env.DEPLOY_DIR}\\* " >nul 2>&1
+                    """
+                }
+            }
+        }
+
+        stage('3. Deploy (Extract Package)') {
+            steps {
+                script {
+                    echo "Extracting ${params.PACKAGE_ZIP_NAME} to ${env.DEPLOY_DIR}..."
+                    // Uses PowerShell to extract the zip file directly to our deployment directory
+                    powershell "Expand-Archive -Path ${params.PACKAGE_ZIP_NAME} -DestinationPath '${env.DEPLOY_DIR}' -Force"
+                    
+                    echo "Deployment to ${params.TARGET_ENV} completed successfully!"
+                }
+            }
+        }
+    }
+}
