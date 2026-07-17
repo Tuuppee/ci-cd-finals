@@ -22,15 +22,20 @@ pipeline {
         stage('1. Determine Version') {
             steps {
                 script {
-                    // Safety check: if parameters are missing (first run), assign a default
-                    def releaseType = params.RELEASE_TYPE ?: 'devSnapshot'
-                    def versionString = params.VERSION_STRING ?: '1.0.0'
-                    
-                    if (releaseType == 'devSnapshot') {
+
+                    def releaseType = params.RELEASE_TYPE ?: "devSnapshot"
+                    def versionString = params.VERSION_STRING ?: "1.0.0"
+
+                    echo "DEBUG RELEASE_TYPE = ${releaseType}"
+                    echo "DEBUG VERSION_STRING = ${versionString}"
+
+                    if (releaseType == "devSnapshot") {
                         env.FINAL_VERSION = "devSnapshot-build${BUILD_NUMBER}"
-                    } else {
-                        env.FINAL_VERSION = versionString.startsWith('v') ? versionString : "v${versionString}"
+                    } 
+                    else {
+                        env.FINAL_VERSION = versionString.startsWith("v") ? versionString : "v${versionString}"
                     }
+
                     echo "Target Release Version Established: ${env.FINAL_VERSION}"
                 }
             }
