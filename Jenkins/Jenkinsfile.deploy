@@ -31,13 +31,13 @@ pipeline {
         stage('2. Locate Package') {
             steps {
                 script {
-                    echo "Deploying Package: ${params.PACKAGE_ZIP_NAME} to ${params.TARGET_ENV}"
+                    echo "Deploying Package: ${params.PACKAGE_ZIP_NAME} to ${params.TARGET_ENV}..."
 
-                    if (!fileExists(params.PACKAGE_ZIP_NAME)) {
-                        error "Package ${params.PACKAGE_ZIP_NAME} not found!"
-                    }
-
-                    echo "Package found."
+                    copyArtifacts(
+                        projectName: 'CD-Delivery',
+                        filter: params.PACKAGE_ZIP_NAME,
+                        selector: lastSuccessful()
+                    )
                 }
             }
         }
