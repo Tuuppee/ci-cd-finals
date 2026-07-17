@@ -22,10 +22,14 @@ pipeline {
         stage('1. Determine Version') {
             steps {
                 script {
-                    if (params.RELEASE_TYPE == 'devSnapshot') {
+                    // Safety check: if parameters are missing (first run), assign a default
+                    def releaseType = params.RELEASE_TYPE ?: 'devSnapshot'
+                    def versionString = params.VERSION_STRING ?: '1.0.0'
+                    
+                    if (releaseType == 'devSnapshot') {
                         env.FINAL_VERSION = "devSnapshot-build${BUILD_NUMBER}"
                     } else {
-                        env.FINAL_VERSION = params.VERSION_STRING.startsWith('v') ? params.VERSION_STRING : "v${params.VERSION_STRING}"
+                        env.FINAL_VERSION = versionString.startsWith('v') ? versionString : "v${versionString}"
                     }
                     echo "Target Release Version Established: ${env.FINAL_VERSION}"
                 }
@@ -36,12 +40,14 @@ pipeline {
             steps {
                 script {
                     echo "Injecting version ${env.FINAL_VERSION} into package.json..."
-                    // Injects version directly into package.json
-                    sh "jq '.version = \"${env.FINAL_VERSION}\"' package.json > temp.json && mv temp.json package.json"
+                    // Uses Node.js to update package.json, which works seamlessly on Windows without requiring jq
+                    bat """
+                    node -e "const fs = require('fs'); const pkg = require('./package.json'); pkg.version = '${env.FINAL_VERSION}'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
+                    """
                     
                     echo "Compiling application..."
-                    sh "npm install"
-                    sh "npm run build" 
+                    bat "npm install"
+                    bat "npm run build" 
                 }
             }
         }
@@ -52,9 +58,8 @@ pipeline {
                     def zipName = "app-${env.FINAL_VERSION}.zip"
                     echo "Packaging build into ${zipName}..."
                     
-                    // Note: If your project builds to 'dist', keep 'dist/'. 
-                    // If it builds to 'build', change this to 'build/'
-                    sh "zip -r ${zipName} dist/"
+                    // Windows uses PowerShell's Compress-Archive utility to build zip files natively without needing 'zip' installed
+                    powershell "Compress-Archive -Path dist/* -DestinationPath ${zipName} -Force"
                     
                     echo "Saving to Jenkins Master Storage..."
                     archiveArtifacts artifacts: zipName, fingerprint: true
