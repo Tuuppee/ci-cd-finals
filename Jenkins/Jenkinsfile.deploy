@@ -10,8 +10,14 @@ pipeline {
 
         string(
             name: 'PACKAGE_ZIP_NAME',
-            defaultValue: 'app-devSnapshot-build7.zip',
-            description: 'Enter the exact zip package name.'
+            defaultValue: 'app-v1.0.0.zip',
+            description: 'Enter the exact name of the zip package to deploy.'
+        )
+
+        string(
+            name: 'PACKAGE_BUILD_NUMBER',
+            defaultValue: '7',
+            description: 'Enter the CD-Delivery build number containing the package.'
         )
     }
 
@@ -27,21 +33,20 @@ pipeline {
             }
         }
 
-
         stage('2. Locate Package') {
             steps {
                 script {
                     echo "Deploying Package: ${params.PACKAGE_ZIP_NAME} to ${params.TARGET_ENV}..."
+                    echo "Using CD-Delivery Build #${params.PACKAGE_BUILD_NUMBER}"
 
                     copyArtifacts(
                         projectName: 'CD-Delivery',
                         filter: params.PACKAGE_ZIP_NAME,
-                        selector: lastSuccessful()
+                        selector: [$class: 'SpecificBuildSelector', buildNumber: params.PACKAGE_BUILD_NUMBER]
                     )
                 }
             }
         }
-
 
         stage('3. Prepare Environment') {
             steps {
@@ -56,7 +61,6 @@ pipeline {
             }
         }
 
-
         stage('4. Deploy (Extract Package)') {
             steps {
                 script {
@@ -70,7 +74,6 @@ pipeline {
                 }
             }
         }
-
 
         stage('5. Apply Environment Configuration') {
             steps {
@@ -93,7 +96,6 @@ pipeline {
                             break
                     }
 
-
                     bat """
                     copy /Y "${configSource}" "${env.DEPLOY_DIR}\\config.js"
                     """
@@ -103,7 +105,6 @@ pipeline {
             }
         }
     }
-
 
     post {
         success {
