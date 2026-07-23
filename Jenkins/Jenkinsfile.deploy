@@ -16,7 +16,7 @@ pipeline {
 
         string(
             name: 'PACKAGE_BUILD_NUMBER',
-            defaultValue: '7',
+            defaultValue: '1',
             description: 'Enter the CD-Delivery build number containing the package.'
         )
     }
@@ -37,10 +37,10 @@ pipeline {
             steps {
                 script {
                     echo "Deploying Package: ${params.PACKAGE_ZIP_NAME} to ${params.TARGET_ENV}..."
-                    echo "Using CD-Delivery Build #${params.PACKAGE_BUILD_NUMBER}"
+                    echo "Using 02-CD-Delivery Build #${params.PACKAGE_BUILD_NUMBER}"
 
                     copyArtifacts(
-                        projectName: 'CD-Delivery',
+                        projectName: '02-CD-Delivery',
                         filter: params.PACKAGE_ZIP_NAME,
                         selector: [$class: 'SpecificBuildSelector', buildNumber: params.PACKAGE_BUILD_NUMBER]
                     )
@@ -78,29 +78,28 @@ pipeline {
         stage('5. Apply Environment Configuration') {
             steps {
                 script {
-
                     def configSource = ""
 
                     switch(params.TARGET_ENV) {
-
                         case "Development":
                             configSource = "configs\\config.development.js"
                             break
-
                         case "Staging":
                             configSource = "configs\\config.staging.js"
                             break
-
                         case "Production":
                             configSource = "configs\\config.production.js"
                             break
                     }
 
                     bat """
-                    copy /Y "${configSource}" "${env.DEPLOY_DIR}\\config.js"
+                    if exist "${configSource}" (
+                        copy /Y "${configSource}" "${env.DEPLOY_DIR}\\config.js"
+                        echo Applied ${configSource}
+                    ) else (
+                        echo Config file ${configSource} not found, skipping environment config copy.
+                    )
                     """
-
-                    echo "Applied ${configSource}"
                 }
             }
         }
@@ -108,11 +107,13 @@ pipeline {
 
     post {
         success {
-            echo "Deployment completed successfully!"
+            echo "Deployment completed successfully to ${params.TARGET_ENV}!"
         }
-
         failure {
             echo "Deployment failed!"
+        }
+        always {
+            cleanWs()
         }
     }
 }
