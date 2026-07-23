@@ -13,7 +13,11 @@ export default [
 
   {
     languageOptions: {
-      globals: globals.browser
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.jest
+      }
     },
 
     rules: {
