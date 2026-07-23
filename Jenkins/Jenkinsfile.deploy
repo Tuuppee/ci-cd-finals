@@ -13,16 +13,11 @@ pipeline {
             defaultValue: 'app-v1.0.0.zip',
             description: 'Enter the exact name of the zip package to deploy.'
         )
-
-        string(
-            name: 'PACKAGE_BUILD_NUMBER',
-            defaultValue: '1',
-            description: 'Enter the CD-Delivery build number containing the package.'
-        )
     }
 
     environment {
         DEPLOY_DIR = "C:\\deployments\\${params.TARGET_ENV}"
+        STORAGE_DIR = "C:\\jenkins_storage"
     }
 
     stages {
@@ -37,13 +32,14 @@ pipeline {
             steps {
                 script {
                     echo "Deploying Package: ${params.PACKAGE_ZIP_NAME} to ${params.TARGET_ENV}..."
-                    echo "Using 02-CD-Delivery Build #${params.PACKAGE_BUILD_NUMBER}"
 
-                    copyArtifacts(
-                        projectName: '02-CD-Delivery',
-                        filter: params.PACKAGE_ZIP_NAME,
-                        selector: [$class: 'SpecificBuildSelector', buildNumber: params.PACKAGE_BUILD_NUMBER]
+                    bat """
+                    if not exist "${env.STORAGE_DIR}\\${params.PACKAGE_ZIP_NAME}" (
+                        echo ERROR: Package ${params.PACKAGE_ZIP_NAME} not found in ${env.STORAGE_DIR}!
+                        exit 1
                     )
+                    copy /Y "${env.STORAGE_DIR}\\${params.PACKAGE_ZIP_NAME}" .
+                    """
                 }
             }
         }
