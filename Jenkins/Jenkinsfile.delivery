@@ -35,6 +35,9 @@ pipeline {
                 bat 'powershell Compress-Archive -Path dist\\* -DestinationPath app-%VERSION_STRING%.zip -Force'
                 bat 'if not exist C:\\jenkins_storage mkdir C:\\jenkins_storage'
                 bat 'copy /Y app-%VERSION_STRING%.zip C:\\jenkins_storage\\'
+                
+                // Tells Jenkins to register the zip file as a copyable artifact
+                archiveArtifacts artifacts: 'app-*.zip', fingerprint: true
             }
         }
     }
