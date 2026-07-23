@@ -1,74 +1,50 @@
 pipeline {
     agent any
-    
+
     parameters {
         choice(
             name: 'RELEASE_TYPE', 
             choices: ['devSnapshot', 'Specific Version'], 
-            description: 'Select the release tier.'
+            description: 'Select the release type'
         )
         string(
             name: 'VERSION_STRING', 
-            defaultValue: '1.0.0', 
-            description: 'If "Specific Version" is chosen, provide the version (e.g., v1.2.0).'
+            defaultValue: 'v1.0.0', 
+            description: 'Enter version string (e.g., v1.0.0 or devSnapshot-build1)'
         )
     }
-    
+
     stages {
-
-        stage('1. Determine Version') {
+        stage('Checkout') {
             steps {
-                script {
-
-                    def releaseType = params.RELEASE_TYPE ?: "devSnapshot"
-                    def versionString = params.VERSION_STRING ?: "1.0.0"
-
-                    echo "DEBUG RELEASE_TYPE = ${releaseType}"
-                    echo "DEBUG VERSION_STRING = ${versionString}"
-
-                    if (releaseType == "devSnapshot") {
-                        env.FINAL_VERSION = "devSnapshot-build${BUILD_NUMBER}"
-                    } 
-                    else {
-                        env.FINAL_VERSION = versionString.startsWith("v") ? versionString : "v${versionString}"
-                    }
-
-                    echo "Target Release Version Established: ${env.FINAL_VERSION}"
-                }
+                checkout scm
             }
         }
-        
-        stage('2. Build App & Inject Version') {
+
+        stage('Build App & Inject Version') {
             steps {
-                script {
-
-                    echo "Injecting version ${env.FINAL_VERSION} into package.json..."
-
-                    bat """
-                    node -e "const fs = require('fs'); const pkg = require('./package.json'); pkg.version = '${env.FINAL_VERSION}'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
-                    """
-
-                    echo "Compiling application..."
-                    bat "npm install"
-                    bat "npm run build"
-                }
+                bat 'npm install'
+                bat 'npm run build'
+                bat 'powershell -Command "New-Item -ItemType Directory -Force -Path dist"'
+                bat 'echo {"version": "%VERSION_STRING%", "releaseType": "%RELEASE_TYPE%"} > dist\\version.json'
             }
         }
-        
-        stage('3. Archive Immutable Zip') {
+
+        stage('Archive Immutable Zip') {
             steps {
-                script {
-
-                    def zipName = "app-${env.FINAL_VERSION}.zip"
-
-                    echo "Packaging build into ${zipName}..."
-
-                    powershell "Compress-Archive -Path dist/* -DestinationPath ${zipName} -Force"
-
-                    echo "Saving to Jenkins Master Storage..."
-                    archiveArtifacts artifacts: zipName, fingerprint: true
-                }
+                bat 'powershell Compress-Archive -Path dist\\* -DestinationPath app-%VERSION_STRING%.zip -Force'
+                bat 'if not exist C:\\jenkins_storage mkdir C:\\jenkins_storage'
+                bat 'copy /Y app-%VERSION_STRING%.zip C:\\jenkins_storage\\'
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Phase 2 Complete: Created app-%VERSION_STRING%.zip and stored in C:\\jenkins_storage."
+        }
+        always {
+            cleanWs()
         }
     }
 }
