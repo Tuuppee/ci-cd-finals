@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        // CRITICAL: Forces Jest / Vitest / React to run ONCE and exit (no watch mode freeze)
         CI = 'true'
     }
 
@@ -10,9 +9,7 @@ pipeline {
         stage('Phase 1: CI - Test') {
             steps {
                 echo '=== Running CI Automated Tests ==='
-                // Install dependencies without interactive prompts
                 bat 'npm ci || npm install'
-                // Run tests once and exit immediately
                 bat 'npm test -- --passWithNoTests'
             }
         }
@@ -51,12 +48,10 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline Green! Launching browser tabs..."
-            bat '''
-                @echo off
-                start "" "http://localhost:3000"
-                start "" "http://localhost:5000"
-            '''
+            echo "=================================================="
+            echo " SUCCESS: Build deployed to C:\\deployments\\Development"
+            echo " View live site at: http://localhost:3000"
+            echo "=================================================="
         }
     }
 }
