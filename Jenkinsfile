@@ -36,19 +36,23 @@ pipeline {
                     def envName = params.TARGET_ENV
                     def containerName = ''
                     def port = ''
+                    def configFile = ''
 
                     switch(envName) {
                         case 'Development':
                             containerName = 'dev-app'
                             port = '3000'
+                            configFile = 'config.development.js'
                             break
                         case 'UAT':
                             containerName = 'uat-app'
                             port = '4000'
+                            configFile = 'config.uat.js'
                             break
                         case 'Staging':
                             containerName = 'staging-app'
                             port = '5000'
+                            configFile = 'config.staging.js'
                             break
                     }
 
@@ -62,6 +66,9 @@ pipeline {
 
                         echo Launching fresh ${containerName} container on port ${port}...
                         docker run -d --name ${containerName} -p ${port}:80 ${IMAGE_NAME}:latest
+
+                        echo Injecting ${configFile} into container...
+                        docker exec ${containerName} sh -c "if [ -f /usr/share/nginx/html/configs/${configFile} ]; then cp /usr/share/nginx/html/configs/${configFile} /usr/share/nginx/html/config.js; fi"
 
                         echo Active Docker Containers:
                         docker ps
