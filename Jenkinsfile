@@ -4,7 +4,7 @@ pipeline {
     parameters {
         choice(
             name: 'TARGET_ENV', 
-            choices: ['Development', 'Staging'], 
+            choices: ['Development', 'UAT', 'Staging'], 
             description: 'Select Target Environment for Deployment'
         )
     }
@@ -34,8 +34,23 @@ pipeline {
             steps {
                 script {
                     def envName = params.TARGET_ENV
-                    def containerName = (envName == 'Development') ? 'dev-app' : 'staging-app'
-                    def port = (envName == 'Development') ? '3000' : '5000'
+                    def containerName = ''
+                    def port = ''
+
+                    switch(envName) {
+                        case 'Development':
+                            containerName = 'dev-app'
+                            port = '3000'
+                            break
+                        case 'UAT':
+                            containerName = 'uat-app'
+                            port = '4000'
+                            break
+                        case 'Staging':
+                            containerName = 'staging-app'
+                            port = '5000'
+                            break
+                    }
 
                     echo "=== Deploying to ${envName} Environment on Port ${port} ==="
 
@@ -60,7 +75,7 @@ pipeline {
         success {
             script {
                 def envName = params.TARGET_ENV
-                def port = (envName == 'Development') ? '3000' : '5000'
+                def port = (envName == 'Development') ? '3000' : (envName == 'UAT') ? '4000' : '5000'
                 echo "=================================================="
                 echo " SUCCESS: Deployed to ${envName}!"
                 echo " Access URL: http://localhost:${port}"
