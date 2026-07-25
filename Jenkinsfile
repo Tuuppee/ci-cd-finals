@@ -7,10 +7,10 @@ pipeline {
             choices: ['Development', 'UAT', 'Staging'], 
             description: 'Select Target Environment for Deployment'
         )
-        choice(
+        string(
             name: 'APP_VERSION', 
-            choices: ['v1.0.0', 'v1.1.0', 'v1.2.0', 'latest'], 
-            description: 'Select Application Version from Delivery to Deploy'
+            defaultValue: '1.0.6', 
+            description: 'Enter the version tag to build/deploy (e.g. 1.0.6, 1.1.0)'
         )
     }
 
@@ -28,11 +28,11 @@ pipeline {
             }
         }
 
-        stage('Phase 2: CD - Delivery (Build Docker Image)') {
+        stage('Phase 2: CD - Delivery (Build & Tag Version)') {
             steps {
                 script {
                     def version = params.APP_VERSION
-                    echo "=== Compiling App & Tagging Docker Image Version: ${version} ==="
+                    echo "=== Packaging and Tagging Docker Image Version: ${version} ==="
                     bat "docker build -t ${IMAGE_NAME}:${version} -t ${IMAGE_NAME}:latest ."
                 }
             }
@@ -73,7 +73,7 @@ pipeline {
                         docker stop ${containerName} 2>nul
                         docker rm ${containerName} 2>nul
 
-                        echo Launching fresh ${containerName} container (${version}) on port ${port}...
+                        echo Launching fresh ${containerName} (${version}) on port ${port}...
                         docker run -d --name ${containerName} -p ${port}:80 ${IMAGE_NAME}:${version}
 
                         echo Injecting ${configFile} into container...
