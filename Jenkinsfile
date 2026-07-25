@@ -7,6 +7,11 @@ pipeline {
             choices: ['Development', 'UAT', 'Staging'], 
             description: 'Select Target Environment for Deployment'
         )
+        choice(
+            name: 'APP_VERSION', 
+            choices: ['v1.0.0', 'v1.1.0', 'v1.2.0', 'latest'], 
+            description: 'Select Application Version from Delivery to Deploy'
+        )
     }
 
     environment {
@@ -25,8 +30,11 @@ pipeline {
 
         stage('Phase 2: CD - Delivery (Build Docker Image)') {
             steps {
-                echo '=== Compiling App & Building Docker Image ==='
-                bat 'docker build -t %IMAGE_NAME%:latest .'
+                script {
+                    def version = params.APP_VERSION
+                    echo "=== Compiling App & Tagging Docker Image Version: ${version} ==="
+                    bat "docker build -t ${IMAGE_NAME}:${version} -t ${IMAGE_NAME}:latest ."
+                }
             }
         }
 
@@ -34,6 +42,7 @@ pipeline {
             steps {
                 script {
                     def envName = params.TARGET_ENV
+                    def version = params.APP_VERSION
                     def containerName = ''
                     def port = ''
                     def configFile = ''
@@ -56,7 +65,7 @@ pipeline {
                             break
                     }
 
-                    echo "=== Deploying to ${envName} Environment on Port ${port} ==="
+                    echo "=== Deploying Version ${version} to ${envName} Environment on Port ${port} ==="
 
                     bat """
                         @echo off
@@ -64,8 +73,8 @@ pipeline {
                         docker stop ${containerName} 2>nul
                         docker rm ${containerName} 2>nul
 
-                        echo Launching fresh ${containerName} container on port ${port}...
-                        docker run -d --name ${containerName} -p ${port}:80 ${IMAGE_NAME}:latest
+                        echo Launching fresh ${containerName} container (${version}) on port ${port}...
+                        docker run -d --name ${containerName} -p ${port}:80 ${IMAGE_NAME}:${version}
 
                         echo Injecting ${configFile} into container...
                         docker exec ${containerName} cp /usr/share/nginx/html/configs/${configFile} /usr/share/nginx/html/config.js
@@ -82,9 +91,10 @@ pipeline {
         success {
             script {
                 def envName = params.TARGET_ENV
+                def version = params.APP_VERSION
                 def port = (envName == 'Development') ? '3000' : (envName == 'UAT') ? '4000' : '5000'
                 echo "=================================================="
-                echo " SUCCESS: Deployed to ${envName}!"
+                echo " SUCCESS: Deployed ${IMAGE_NAME}:${version} to ${envName}!"
                 echo " Access URL: http://localhost:${port}"
                 echo "=================================================="
             }
