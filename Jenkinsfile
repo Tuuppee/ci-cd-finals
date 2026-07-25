@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         CI = 'true'
+        IMAGE_NAME = 'ci-cd-finals-app'
     }
 
     stages {
@@ -14,33 +15,33 @@ pipeline {
             }
         }
 
-        stage('Phase 2: CD - Delivery') {
+        stage('Phase 2: CD - Delivery (Build Docker Image)') {
             steps {
-                echo '=== Compiling & Packaging Build Artifact ==='
+                echo '=== Compiling App & Building Docker Image ==='
                 bat 'npm run build'
-                bat '''
-                    @echo off
-                    if not exist "C:\\deployments" mkdir "C:\\deployments"
-                    echo Packaging dist folder into C:\\deployments\\app-v1.0.0.zip...
-                    powershell -Command "Compress-Archive -Path 'dist\\*' -DestinationPath 'C:\\deployments\\app-v1.0.0.zip' -Force"
-                '''
+                bat 'docker build -t %IMAGE_NAME%:latest .'
             }
         }
 
-        stage('Phase 3: CD - Deployment') {
+        stage('Phase 3: CD - Deployment (Run Docker Containers)') {
             steps {
-                echo '=== Deploying Artifact to Target Folder ==='
+                echo '=== Deploying Fresh Docker Containers ==='
                 bat '''
                     @echo off
-                    if not exist "C:\\deployments\\Development" mkdir "C:\\deployments\\Development"
+                    echo Stopping existing containers...
+                    docker stop dev-app 2>nul
+                    docker rm dev-app 2>nul
+                    docker stop staging-app 2>nul
+                    docker rm staging-app 2>nul
 
-                    echo Unpacking build into Development directory...
-                    powershell -Command "Expand-Archive -Path 'C:\\deployments\\app-v1.0.0.zip' -DestinationPath 'C:\\deployments\\Development' -Force"
+                    echo Starting Development container on port 3000...
+                    docker run -d --name dev-app -p 3000:80 %IMAGE_NAME%:latest
 
-                    if exist "C:\\deployments\\Development\\configs\\config.development.js" (
-                        echo Injecting environment configuration...
-                        copy /Y "C:\\deployments\\Development\\configs\\config.development.js" "C:\\deployments\\Development\\config.js"
-                    )
+                    echo Starting Staging container on port 5000...
+                    docker run -d --name staging-app -p 5000:80 %IMAGE_NAME%:latest
+
+                    echo Verifying active containers:
+                    docker ps
                 '''
             }
         }
@@ -49,8 +50,7 @@ pipeline {
     post {
         success {
             echo "=================================================="
-            echo " SUCCESS: Build deployed to C:\\deployments\\Development"
-            echo " View live site at: http://localhost:3000"
+            echo " SUCCESS: Containers running on ports 3000 & 5000!"
             echo "=================================================="
         }
     }
