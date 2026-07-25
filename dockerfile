@@ -11,10 +11,11 @@ RUN npm run build
 # Stage 2: Serve static assets with Nginx
 FROM nginx:alpine
 
-# Copy built dist files from the build stage
+# Copy built dist files
 COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+# Copy the configs folder into Nginx html directory
+COPY --from=build /app/configs /usr/share/nginx/html/configs
 
-# Start Nginx directly
+EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

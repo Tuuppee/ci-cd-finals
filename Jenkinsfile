@@ -68,7 +68,7 @@ pipeline {
                         docker run -d --name ${containerName} -p ${port}:80 ${IMAGE_NAME}:latest
 
                         echo Injecting ${configFile} into container...
-                        docker exec ${containerName} sh -c "if [ -f /usr/share/nginx/html/configs/${configFile} ]; then cp /usr/share/nginx/html/configs/${configFile} /usr/share/nginx/html/config.js; fi"
+                        docker exec ${containerName} cp /usr/share/nginx/html/configs/${configFile} /usr/share/nginx/html/config.js
 
                         echo Active Docker Containers:
                         docker ps
