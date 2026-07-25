@@ -1,6 +1,14 @@
 pipeline {
     agent any
 
+    parameters {
+        choice(
+            name: 'TARGET_ENV', 
+            choices: ['Development', 'Staging'], 
+            description: 'Select Target Environment for Deployment'
+        )
+    }
+
     environment {
         CI = 'true'
         IMAGE_NAME = 'ci-cd-finals-app'
@@ -18,40 +26,46 @@ pipeline {
         stage('Phase 2: CD - Delivery (Build Docker Image)') {
             steps {
                 echo '=== Compiling App & Building Docker Image ==='
-                bat 'npm run build'
                 bat 'docker build -t %IMAGE_NAME%:latest .'
             }
         }
 
-        stage('Phase 3: CD - Deployment (Run Docker Containers)') {
+        stage('Phase 3: CD - Deployment') {
             steps {
-                echo '=== Deploying Fresh Docker Containers ==='
-                bat '''
-                    @echo off
-                    echo Stopping existing containers...
-                    docker stop dev-app 2>nul
-                    docker rm dev-app 2>nul
-                    docker stop staging-app 2>nul
-                    docker rm staging-app 2>nul
+                script {
+                    def envName = params.TARGET_ENV
+                    def containerName = (envName == 'Development') ? 'dev-app' : 'staging-app'
+                    def port = (envName == 'Development') ? '3000' : '5000'
 
-                    echo Starting Development container on port 3000...
-                    docker run -d --name dev-app -p 3000:80 %IMAGE_NAME%:latest
+                    echo "=== Deploying to ${envName} Environment on Port ${port} ==="
 
-                    echo Starting Staging container on port 5000...
-                    docker run -d --name staging-app -p 5000:80 %IMAGE_NAME%:latest
+                    bat """
+                        @echo off
+                        echo Stopping existing ${containerName} container...
+                        docker stop ${containerName} 2>nul
+                        docker rm ${containerName} 2>nul
 
-                    echo Verifying active containers:
-                    docker ps
-                '''
+                        echo Launching fresh ${containerName} container on port ${port}...
+                        docker run -d --name ${containerName} -p ${port}:80 ${IMAGE_NAME}:latest
+
+                        echo Active Docker Containers:
+                        docker ps
+                    """
+                }
             }
         }
     }
 
     post {
         success {
-            echo "=================================================="
-            echo " SUCCESS: Containers running on ports 3000 & 5000!"
-            echo "=================================================="
+            script {
+                def envName = params.TARGET_ENV
+                def port = (envName == 'Development') ? '3000' : '5000'
+                echo "=================================================="
+                echo " SUCCESS: Deployed to ${envName}!"
+                echo " Access URL: http://localhost:${port}"
+                echo "=================================================="
+            }
         }
     }
 }
